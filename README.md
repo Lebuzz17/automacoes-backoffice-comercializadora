@@ -1,12 +1,13 @@
 # Backoffice Automations — Comercializadora ACL
 
-Três automações de backoffice usadas em uma comercializadora de energia no mercado livre (ACL):
+Quatro automações de backoffice usadas em uma comercializadora de energia no mercado livre (ACL):
 
 1. **VBA RETUSD** — geração automática de Notas de Débito de ressarcimento TUSD em PDF
 2. **N8N Criação de Unidades** — cadastro em massa de unidades consumidoras no ERP via API
 3. **N8N Consulta CNPJ** — enriquecimento de cadastro com dados públicos de CNPJ
+4. **PDF Consolidator** — coleta em lote de PDFs em estrutura de pastas (Python)
 
-**Impacto combinado**: substitui processos manuais repetitivos do backoffice. Para os 3 fluxos correlatos da área (RETUSD + planilhas auxiliares de modulação), o tempo de execução caiu de ~1h para ~5min por ciclo mensal.
+**Impacto combinado**: substitui processos manuais repetitivos do backoffice. Para os 3 fluxos correlatos da área (RETUSD + planilhas auxiliares de modulação), o tempo de execução caiu de ~1h para ~5min por ciclo mensal. O PDF Consolidator reduziu uma demanda pontual de 2-3h para ~1min.
 
 > Versões anonimizadas (URLs internas substituídas por placeholders, dados de clientes removidos). Lógica e estrutura preservadas para fins de portfólio técnico.
 
@@ -77,7 +78,7 @@ n8n-unidades/
 
 ### Sanitização para esta versão pública
 
-- `mercurio.zeusenergia.com.br` → `api-erp-interno.exemplo.com`
+- URL do ERP interno → `api-erp-interno.exemplo.com`
 - Credenciais hardcoded → removidas (precisam ser reconfiguradas no N8N)
 - IDs/UUIDs de nodes mantidos (não vazam informação)
 
@@ -106,6 +107,30 @@ n8n-cnpj/
 
 ---
 
+## 4. PDF Consolidator — `pdf-consolidator/`
+
+### O que faz
+
+Percorre uma estrutura de pastas (uma por cliente), localiza PDFs em subpastas padronizadas e consolida tudo em uma única pasta de destino. Usado em demanda pontual com ~370 pastas de clientes.
+
+Não é só `os.walk + shutil.copy` — tem engenharia de produção:
+
+- Validação dupla de PDF (extensão + cabeçalho binário `%PDF-`)
+- Long path prefix do Windows (`\\?\`) para caminhos > 260 chars
+- Suporte UNC (`\\Servidor\Compartilhamento`)
+- Batches + workers paralelos configuráveis
+- Dry-run, verificação de espaço livre, logging em arquivo
+
+### Arquivos
+
+```
+pdf-consolidator/
+├── pdf_consolidator.py    # Script principal
+└── README.md              # Configuração e uso
+```
+
+---
+
 ## Como importar workflows N8N
 
 1. Abra seu N8N (cloud ou self-hosted)
@@ -120,6 +145,8 @@ n8n-cnpj/
 **Por que N8N e não Python puro?** N8N oferece interface visual + tratamento natural de erros por node + retry built-in. Para fluxos com 3-5 chamadas de API e poucos branches, o ganho de manutenibilidade vale mais que a flexibilidade de código.
 
 **Por que VBA e não migrar pra Python?** O usuário final do RETUSD opera em Excel. Migrar pra Python obrigaria a equipe a abrir terminal/script, o que adiciona fricção. VBA dentro do próprio workbook mantém o fluxo "abre Excel, aperta botão" — a automação fica invisível ao usuário, que é o ponto.
+
+**Por que Python (e não VBA/N8N) no PDF Consolidator?** Operação sobre filesystem em larga escala (~370 pastas) pede paralelismo e logging robustos. VBA é lento para esse tipo de coisa; N8N seria overkill. Python `concurrent.futures` resolve em dezenas de linhas.
 
 ---
 

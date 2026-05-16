@@ -1,0 +1,233 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "xlsx",
+        "binaryPropertyName": "data1",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        -32,
+        864
+      ],
+      "id": "61a73799-c44d-4902-80b5-9fc610a9da71",
+      "name": "Extract from File2"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f7f28209-3d8c-4c3f-a609-a9262d06b53d",
+              "name": "cnpj",
+              "value": "={{ $json.body?.CNPJ.replace(/[^0-9]/g, '') ?? $json.CNPJ.replace(/[^0-9]/g, '') }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        192,
+        864
+      ],
+      "id": "d1dde28d-a655-4cb3-bc1d-c119ea9e35b3",
+      "name": "Coleta CNPJ1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        416,
+        864
+      ],
+      "id": "f728ec2a-bc7a-4ef5-97d2-6fe1a459879e",
+      "name": "Loop Over Items1"
+    },
+    {
+      "parameters": {
+        "amount": 20
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        864,
+        928
+      ],
+      "id": "2477d5c5-d5b9-4c42-a853-4c8042d48e33",
+      "name": "Aguarda 20s1",
+      "webhookId": "335890dd-3772-4135-97e6-d34bdbcc3350"
+    },
+    {
+      "parameters": {
+        "url": "=https://brasilapi.com.br/api/cnpj/v1/{{ $json.cnpj }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        640,
+        864
+      ],
+      "id": "59e81e1e-cf5c-434e-8a52-d342e8562ee3",
+      "name": "Consulta BrasilAPI",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "formTitle": "Adicione o arquivo",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "data1",
+              "fieldType": "file",
+              "acceptFileTypes": ".xlsx",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.3,
+      "position": [
+        -256,
+        864
+      ],
+      "id": "a11e0fde-feba-41e7-addd-3e64c6be30bf",
+      "name": "Infos Pedro",
+      "webhookId": "0a61b9e0-f47d-4b1d-9e23-b8fa1a1527e9"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Agrega todos os itens retornados pelo loop\nconst items = $input.all();\n\nconst rows = items.map(item => {\n  const d = item.json;\n\n  // Monta endereço: Tipo Logradouro + Nome + Número, complemento após vírgula\n  const tipo = (d.descricao_tipo_de_logradouro || '').trim();\n  const log  = (d.logradouro || '').trim();\n  const num  = (d.numero || '').trim();\n  const comp = (d.complemento || '').trim();\n\n  let endereco = [tipo, log, num].filter(Boolean).join(' ');\n  if (comp) endereco += ', ' + comp;\n\n  // Formata CEP: 00000-000\n  let cep = String(d.cep || '').replace(/\\D/g, '').padStart(8, '0');\n  if (cep.length === 8) cep = cep.slice(0, 5) + '-' + cep.slice(5);\n\n  return {\n    Unidade:         (d.nome_fantasia || d.razao_social || '').trim(),\n    RAZAO:           (d.razao_social || '').trim(),\n    CNPJ:            (d.cnpj || '').trim(),\n    ENDERECO:        endereco,\n    BAIRRO_DISTRITO: (d.bairro || '').trim().toUpperCase(),\n    CIDADE:          (d.municipio || '').trim().toUpperCase(),\n    CEP:             cep\n  };\n});\n\nreturn rows.map(r => ({ json: r }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        672
+      ],
+      "id": "00b298bc-c57a-48df-9f49-1882ea10a109",
+      "name": "Monta Endereços1"
+    },
+    {
+      "parameters": {
+        "operation": "xlsx",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        864,
+        672
+      ],
+      "id": "c0323b1f-df02-45ac-a17d-d832270801ef",
+      "name": "Excel NDs3"
+    }
+  ],
+  "connections": {
+    "Extract from File2": {
+      "main": [
+        [
+          {
+            "node": "Coleta CNPJ1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Coleta CNPJ1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items1": {
+      "main": [
+        [
+          {
+            "node": "Monta Endereços1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Consulta BrasilAPI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aguarda 20s1": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consulta BrasilAPI": {
+      "main": [
+        [
+          {
+            "node": "Aguarda 20s1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Infos Pedro": {
+      "main": [
+        [
+          {
+            "node": "Extract from File2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Monta Endereços1": {
+      "main": [
+        [
+          {
+            "node": "Excel NDs3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5de864b735053f4dd8488bf0cad8f347794f66a91acc9db1035cc684e4b92279"
+  }
+}

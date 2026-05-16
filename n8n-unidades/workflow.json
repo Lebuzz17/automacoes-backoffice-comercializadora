@@ -1,0 +1,504 @@
+{
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Adicione o arquivo",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "data1",
+              "fieldType": "file",
+              "acceptFileTypes": ".xlsx",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.3,
+      "position": [
+        -256,
+        368
+      ],
+      "id": "4ed66718-a74e-4032-98fc-36859ea89ebf",
+      "name": "Cadastrar Unidades",
+      "webhookId": "0bc811fa-f32b-427f-99c4-04a5b847442c"
+    },
+    {
+      "parameters": {
+        "jsCode": "const headers = $input.first().json.headers;\n\nconst setCookie = headers['set-cookie'];\n\nif (!setCookie) {\n  throw new Error('Header set-cookie não encontrado');\n}\n\nconst cookieHeader = (Array.isArray(setCookie) ? setCookie : [setCookie])\n  .map(c => c.split(';')[0])\n  .join('; ');\n\nreturn [{\n  json: {\n    erpAuthCookie: cookieHeader\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        192,
+        368
+      ],
+      "id": "9e2bffd9-9e53-4fa8-baed-f5f8e7d918dd",
+      "name": "Code in JavaScript1"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1088,
+        368
+      ],
+      "id": "e3e504ca-ad47-4c80-9bd7-0ecb9ab23464",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "amount": 20
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        2432,
+        448
+      ],
+      "id": "7cfb0bd0-f372-4a2b-9506-dd504939d444",
+      "name": "Aguarda 20s",
+      "webhookId": "335890dd-3772-4135-97e6-d34bdbcc3350"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.cnpja.com/office/{{ $('Coleta CNPJ').item.json.cnpj }}?registrations=ORIGIN",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1312,
+        368
+      ],
+      "id": "9b9de37b-65b4-49ea-b08f-42947fa523a5",
+      "name": "Consulta CNPJá",
+      "retryOnFail": false,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "USb6f2GLvHfR4pGA",
+          "name": "CNPJá"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f7f28209-3d8c-4c3f-a609-a9262d06b53d",
+              "name": "cnpj",
+              "value": "={{ $json.body?.CNPJ.replace(/[^A-Za-z0-9]/g, '').toUpperCase() ?? $json.CNPJ.replace(/[^A-Za-z0-9]/g, '').toUpperCase() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        864,
+        368
+      ],
+      "id": "7d184421-0a85-4c09-8ef7-887d7268af5c",
+      "name": "Coleta CNPJ"
+    },
+    {
+      "parameters": {
+        "operation": "xlsx",
+        "binaryPropertyName": "data1",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        640,
+        368
+      ],
+      "id": "040986fe-bc22-4b72-80f5-9a97676fedce",
+      "name": "Extract from File1"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api-erp-interno.exemplo.com/rest/unit",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Sec-Fetch-Site",
+              "value": "same-origin"
+            },
+            {
+              "name": "Sec-Fetch-Mode",
+              "value": "cors"
+            },
+            {
+              "name": "Sec-Fetch-Dest",
+              "value": "empty"
+            },
+            {
+              "name": "X-Login-Ajax-call",
+              "value": "true"
+            },
+            {
+              "name": "Sec-Fetch-Mode",
+              "value": "cors"
+            },
+            {
+              "name": "Sec-Fetch-Site",
+              "value": "same-origin"
+            },
+            {
+              "name": "cookie",
+              "value": "={{ $('Code in JavaScript1').first().json.erpAuthCookie }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "redirect": {
+            "redirect": {}
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2208,
+        368
+      ],
+      "id": "c3ad11f1-d94c-494d-8581-d352125fdc4f",
+      "name": "ERP: Criar Unidades"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pega os dados do CNPJá (primeiro item desse node)\nconst cnpjaData = $('Consulta CNPJá').first().json;\nconst cityNameFromCnpja = cnpjaData?.address?.city || ''; // ex: \"Rio de Janeiro\"\n\n// UF vinda do node \"Codigo Estado\"\nconst ufFromCode = $('Codigo Estado').first().json.stateSigla; // ex: \"RJ\"\n\n// Pega o array de cidades do node anterior (que já filtrou por estado)\nconst citiesArray = $('Código Cidade ERP').all();\n\n// Encontra o numCity correspondente ao nome da cidade\nlet numCity = null;\n\n\nif (cityNameFromCnpja && citiesArray && citiesArray.length > 0) {\n  for (const cityItem of citiesArray) {\n    const cityData = cityItem?.json;\n    if (!cityData || !cityData.nomCity || typeof cityData.nomCity !== 'string') {\n      continue;\n    }\n\n    const cityNameFromApi = cityData.nomCity.trim();\n    const cityNameFromCnpjaClean = cityNameFromCnpja.trim();\n\n    if (cityNameFromApi.toUpperCase() === cityNameFromCnpjaClean.toUpperCase()) {\n      numCity = cityData.numCity;\n      break;\n    }\n  }\n}\n\nif (numCity === null) {\n  console.log('⚠️ Cidade não encontrada:', cityNameFromCnpja);\n  console.log(\n    'Primeiras 5 cidades disponíveis:',\n    citiesArray\n      .slice(0, 5)\n      .map((c) => c.json?.nomCity)\n      .filter(Boolean),\n  );\n}\n\n\n// Define o numCountGroup baseado no estado\nconst numCountGroup = 5716;\n\n// Mapa de CST/CFOP por UF\nconst taxMapByUf = {\n  AL: { cst: 30, cfop: 6258 },\n  AM: { cst: 30, cfop: 6258 },\n  CE: { cst: 30, cfop: 6258 },\n  ES: { cst: 30, cfop: 6258 },\n  MA: { cst: 30, cfop: 6258 },\n  MG: { cst: 30, cfop: 6258 },\n  PA: { cst: 30, cfop: 6258 },\n  PR: { cst: 41, cfop: 6258 },\n  PE: { cst: 30, cfop: 6258 },\n  RJ: { cst: 41, cfop: 5258 },\n  RS: { cst: 30, cfop: 6258 },\n  RO: { cst: 30, cfop: 6258 },\n  SP: { cst: 0, cfop: 5123 },\n};\n\nconst uf = ufFromCode;\n\nlet taxCfg = {};\nif (uf && taxMapByUf[uf]) {\n  taxCfg = taxMapByUf[uf];\n} else {\n  console.log('UF sem mapeamento CST/CFOP:', uf);\n}\n\nconst nomCst = taxCfg.cst ?? null;\nconst nomCfop = taxCfg.cfop ?? null;\n\n// Dados do próprio item (se precisar de algo do $json)\nconst data = $json;\n\n// Flags\nconst indMei = Boolean(data?.simei?.optante) || false;\nconst indSimples = Boolean(data?.simples?.optante) || false;\n\n// Nodes “únicos” também com .first()\nconst extractFile = $('Extract from File1').first().json;\nconst coletaCnpj = $('Coleta CNPJ').first().json;\nconst consulta = $('Consulta CNPJá').first().json;\nconst codigoEstado = $('Codigo Estado').first().json;\n\n// Payload no formato da API ERP\nconst payload = {\n  nomCount: extractFile.CLIENTES,\n  nomCnpj: coletaCnpj.cnpj,\n  nomFull: consulta.company.name,\n  nomAddre: consulta.address.street,\n  nomStateId: $json.nomStateId ? $json.nomStateId : \"ISENTO\",\n  indConsu: true,\n  nomAddreNumbe: consulta.address.number,\n  nomNeigh: consulta.address.district,\n  nomAddreSuppl: consulta.address.details,\n  nomZipCode: consulta.address.zip,\n  indExcepIcms: false,\n  nomIcms: null,\n  nomCfop,\n  nomCst,\n  clienteGestao: true,\n  nomSuframa: null,\n  nomCnpjFatur: null,\n  nomCityId: 'ISENTO',\n  indMei,\n  indSimples,\n  tblCity: {\n    numCity,\n  },\n  tblState: {\n    numState: codigoEstado.stateId,\n  },\n  tblSector: {\n    numSetor: 2,\n  },\n  tblCounterpartyGroup: {\n    numCountGroup,\n  },\n};\n\nconsole.log('✅ Payload gerado com sucesso!');\nconsole.log('Cidade:', cityNameFromCnpja, '→ numCity:', numCity);\nconsole.log('Estado:', ufFromCode, '→ numCountGroup:', numCountGroup);\nconsole.log('CST:', nomCst, '| CFOP:', nomCfop);\n\nreturn { json: payload };\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1984,
+        368
+      ],
+      "id": "57f63b2d-0af0-463f-b424-b99ff3e3bb3f",
+      "name": "Formato API ERP"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [
+        1312,
+        176
+      ],
+      "id": "130bbf83-a70d-47e5-89ea-a4a12fbfd61a",
+      "name": "Excel NDs"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api-erp-interno.exemplo.com/authenticate",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Login-Ajax-call",
+              "value": "true"
+            },
+            {
+              "name": "Accept",
+              "value": "application/json, text/plain, */*"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "username",
+              "value": "USER_API"
+            },
+            {
+              "name": "password",
+              "value": "hC2sv98Q5CuJRMoSGgPB0OjFf1o5FRM0"
+            },
+            {
+              "name": "code"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -32,
+        368
+      ],
+      "id": "938007ad-429b-4260-ac69-82da3211129d",
+      "name": "Autenticação ERP"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f96f3204-38a0-4f0b-95d0-63c53d5f6dac",
+              "name": "data1",
+              "value": "={{ $('Cadastrar Unidades').item.binary.data1 }}",
+              "type": "binary"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        416,
+        368
+      ],
+      "id": "f190a236-ef0d-4d3b-a9af-c1d3826dc040",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Dicionário de estados (sigla → ID)\nconst stateMap = {\n  'AC': 1,\n  'AL': 2,\n  'AP': 3,\n  'AM': 4,\n  'BA': 5,\n  'CE': 6,\n  'DF': 7,\n  'ES': 8,\n  'GO': 9,\n  'MA': 10,\n  'MT': 11,\n  'MS': 12,\n  'MG': 13,\n  'PA': 14,\n  'PB': 15,\n  'PR': 16,\n  'PE': 17,\n  'PI': 18,\n  'RJ': 19,\n  'RN': 20,\n  'RS': 21,\n  'RO': 22,\n  'RR': 23,\n  'SC': 24,\n  'SP': 25,\n  'SE': 26,\n  'TO': 27\n};\n\n// Pega o estado do node anterior\nconst stateSigla = $('Consulta CNPJá').item.json.address.state.trim();\n\n// Busca o ID correspondente\nconst stateId = stateMap[stateSigla] ?? -1;\n\n// Retorna o resultado\nreturn {\n  json: {\n    stateId: stateId,\n    stateSigla: stateSigla  // opcional, para debug\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1536,
+        368
+      ],
+      "id": "ad4d8637-2373-43a4-b907-ac3ab970a2c4",
+      "name": "Codigo Estado"
+    },
+    {
+      "parameters": {
+        "url": "https://api-erp-interno.exemplo.com/rest/dadosSistema/cityByState",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "stateId",
+              "value": "={{ $json.stateId }}"
+            }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Sec-Fetch-Site",
+              "value": "same-origin"
+            },
+            {
+              "name": "Sec-Fetch-Mode",
+              "value": "cors"
+            },
+            {
+              "name": "Sec-Fetch-Dest",
+              "value": "empty"
+            },
+            {
+              "name": "X-Login-Ajax-call",
+              "value": "true"
+            },
+            {
+              "name": "cookie",
+              "value": "={{ $('Autenticação ERP').item.json.headers['set-cookie'][0] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1760,
+        368
+      ],
+      "id": "1e2fddc9-f688-458f-8ff6-1fcef3e911a5",
+      "name": "Código Cidade ERP"
+    }
+  ],
+  "connections": {
+    "Cadastrar Unidades": {
+      "main": [
+        [
+          {
+            "node": "Autenticação ERP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Excel NDs",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Consulta CNPJá",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aguarda 20s": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Consulta CNPJá": {
+      "main": [
+        [
+          {
+            "node": "Codigo Estado",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Coleta CNPJ": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File1": {
+      "main": [
+        [
+          {
+            "node": "Coleta CNPJ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ERP: Criar Unidades": {
+      "main": [
+        [
+          {
+            "node": "Aguarda 20s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Formato API ERP": {
+      "main": [
+        [
+          {
+            "node": "ERP: Criar Unidades",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Autenticação ERP": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Extract from File1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Codigo Estado": {
+      "main": [
+        [
+          {
+            "node": "Código Cidade ERP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Código Cidade ERP": {
+      "main": [
+        [
+          {
+            "node": "Formato API ERP",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "5de864b735053f4dd8488bf0cad8f347794f66a91acc9db1035cc684e4b92279"
+  }
+}

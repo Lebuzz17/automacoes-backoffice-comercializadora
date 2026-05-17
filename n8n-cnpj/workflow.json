@@ -108,7 +108,7 @@
         864
       ],
       "id": "a11e0fde-feba-41e7-addd-3e64c6be30bf",
-      "name": "Infos Pedro",
+      "name": "Infos CNPJ",
       "webhookId": "0a61b9e0-f47d-4b1d-9e23-b8fa1a1527e9"
     },
     {
@@ -202,7 +202,7 @@
         ]
       ]
     },
-    "Infos Pedro": {
+    "Infos CNPJ": {
       "main": [
         [
           {
